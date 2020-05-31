@@ -16,15 +16,9 @@
 # --- Tokens --- #
 
 class Token():
-    def __init_(self, token_type, token_value):
+    def __init__(self, token_type, token_value):
         self.type = token_type
         self.value = token_value
-
-    def type(self):
-        return self.type
-
-    def value(self):
-        return self.value
 
 class TokenList():
     def __init__(self, l_token = []):
@@ -40,6 +34,9 @@ class TokenList():
             return self.list[self.index]
         else:
             return False
+
+    def reset(self):
+        self.index = -1
 
 # --- Abstract Syntax Tree (AST) --- #
 
@@ -127,10 +124,10 @@ def parser(l_token):
 
 # --- Secondary functions --- #
 
-def expect(target = [], l_token):
+def expect(l_token, token_see, target = []):
     last = token_see
     token_see = l_token.get()
-    if target != [] and last.type() not in target:
+    if target != [] and last.type not in target:
         raise SyntaxError("unknown operand, one of these is expected : " + ", ".join(target))
     return last
 
