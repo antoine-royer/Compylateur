@@ -21,22 +21,25 @@ class Token():
         self.value = token_value
 
 class TokenList():
-    def __init__(self, l_token = []):
+    def __init__(self):
         self.index = -1
-        self.list = l_token
+        self.list = list()
         
     def add(self, token):
         self.list.append(token)
 
-    def get(self, jump = 1):
+    def next(self, jump = 1):
         self.index += jump
         if self.index < len(self.list):
             return self.list[self.index]
         else:
             return False
 
-    def reset(self):
-        self.index = -1
+    def generate(self):
+        index = 0
+        while index < len(self.list):
+            print((self.list[index].type, self.list[index].value))
+            index += 1
 
 # --- Abstract Syntax Tree (AST) --- #
 
@@ -69,14 +72,14 @@ def lexer(prgm_src):
     var_type = {"des réels", "un réel", "des entiers", "un entiers", "un entier naturel", "des entiers naturels", "un entier relatif", "des entiers relatifs", "une liste", "des listes", "un flottant", "des flottants", "une chaîne de caractères", "des chaînes de caractères"}
     cmnd = {"fin", "finsi", "fin si", "fintantque", "fin tantque", "fin tant que", "finpour", "fin pour", "afficher", "si", "alors", "sinon", "tant que", "tantque", "pour"}
     optr = {"+", "-", "/", "*", "^"}
-    sptr = {"et", "(", ")", "[", "]", "{", "}", "\"", "\n", "à", "entre", "de", ",", ";", "faire"}
+    sptr = {"et", "(", ")", "[", "]", "{", "}", "\n", "à", "entre", "de", ",", ";", "faire"}
     comp = {"=", "<", "<=", ">", ">=", "est supérieur à", "est supérieur ou égal à", "est inférieur à", "est inférieur ou égal à", "est différent de", "est égal à"}
     user = {"saisir", "saisir la valeur de", "saisir les valeurs de", "demander la valeur de", "demander à l'utilisateur la valeur de"}
     logi = {"et que", "ou que"}
     assi = {"prend la valeur", "sont", "est"}
     rang = {"allant", "variant"}
     
-    for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", "\"", "\n", ",", ";"}:
+    for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
         prgm_src = prgm_src.replace(i, " " + i + " ")
     word = [i for i in prgm_src.lower().split(" ") if i != ""]
 
@@ -101,17 +104,30 @@ def lexer(prgm_src):
                         index += len(target)
         
 
-        if undef:
-            l_token.add(Token(("UNDEF", "NUM")[word[index].isdigit()], word[index]))
+        if undef and word[index] == "\"":
+            l_token, index = text_detecter(word, index, l_token)
+        elif undef:
+            l_token.add(Token(("VAR", "NUM")[word[index].isdigit()], word[index]))
             index += 1
 
 # --- Secondary functions --- #
 
-def lexer_detect(mot, index, target):
+def lexer_detect(word, index, target):
     try:
-        return not 0 in [target[i] == mot[i + index] for i in range(len(target))]
+        return not 0 in [target[i] == word[i + index] for i in range(len(target))]
     except:
         return 0
+
+def text_detecter(word, index, l_token):
+    txt = word[index]
+    index += 1
+    while word[index] != '"':
+        txt = txt + " " + word[index]
+        index += 1
+    l_token.add(Token("TEXT", txt + ' "'))
+    return l_token, index + 1
+
+    
 
 # ==================================================
 # Parser
@@ -120,13 +136,17 @@ def lexer_detect(mot, index, target):
 # --- Main function --- #
 
 def parser(l_token):
-    token_see = l_token.get()
+    token_ahead = l_token.get()
+
+# --- Grammar detection functions --- #
+# (empty for the moment) #
+    
 
 # --- Secondary functions --- #
 
-def expect(l_token, token_see, target = []):
-    last = token_see
-    token_see = l_token.get()
+def expect(l_token, token_ahead, target = []):
+    last = token_ahead
+    token_ahead = l_token.next()
     if target != [] and last.type not in target:
         raise SyntaxError("unknown operand, one of these is expected : " + ", ".join(target))
     return last
