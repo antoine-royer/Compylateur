@@ -1,5 +1,5 @@
 # --------------------------------------------------
-# Compylateur (Version 0.0)
+# Compylateur (Version dev)
 # By Sha-Chan~ 
 # from April to June 2020
 #
@@ -36,10 +36,7 @@ class TokenList():
             return self.list[-1]
 
     def generate(self):
-        index = 0
-        while index < len(self.list):
-            print((self.list[index].type, self.list[index].value))
-            index += 1
+        for i in self.list: print((i.type, i.value))
 
 # --- Abstract Syntax Tree (AST) --- #
 
@@ -50,10 +47,6 @@ class AST():
     def add_branch(self, branch):
         self.branch.append(branch)
 
-    def generate(self):
-        for i in self.branch:
-            print(i)
-
 class Branch():
     def __init__(self, title, value, *sub_branch):
         self.title = title
@@ -63,8 +56,13 @@ class Branch():
     def add_sub_branch(self, *sub_branch):
         for i in sub_branch: self.sub_branch.append(i)
 
-    def generate(self):
+    def gen(self):
         return self.title, self.value, self.sub_branch
+
+def AST_gen(branch, tab = 0):
+    for i in branch:
+        print(tab * "  " + "{0} : {1}".format(i.gen()[0], i.gen()[1]))
+        if i.gen()[2]: AST_gen(i.gen()[2], tab + 1)
 
 # --- Parser --- #
 
@@ -74,11 +72,10 @@ class Parser():
         self.token_ahead = Token()
 
     def expect(self, target = []):
-        last = self.token_ahead
         self.token_ahead = self.l_token.next()
         if target != [] and self.token_ahead.type not in target:
-            raise SyntaxError("unknown operand, one of these is expected : " + ", ".join(target))
-        return last
+            raise SyntaxError("This operand was not expected : '{0}'.".format(self.token_ahead.value))
+        return self.token_ahead
 
     def atome(self):
         return self.expect(["VAR", "NUM"])
@@ -118,9 +115,7 @@ def lexer(prgm_src):
                 
                 target = k.split(" ")
                 
-                if index >= len(word):
-                    l_token.generate()
-                    return l_token
+                if index >= len(word): return l_token
                 
                 if word[index] in target and lexer_detect(word, index, target):
                         l_token.add(Token(name[j], k))
@@ -161,27 +156,35 @@ def text_detecter(word, index, l_token):
 
 def parser(l_token):
     parser = Parser(l_token)
+
+    ast = AST()
+    ast.add_branch(somme(parser))
     
-    somme(parser)
+    return ast
 
 # --- Grammar detection functions --- #
-# (only tests function for the moment)
+# (only test functions for the moment)
 
 
 def somme(parser):
     atome_1 = parser.atome()
+    parser.expect(["OPTR"])
     if parser.token_ahead.value == "+":
-        parser.expect(["OPTR"])
-        atome_2 = atome()
+        atome_2 = parser.atome()
+        return Branch("Operation", "+", Branch(("Variable", "Number")[atome_1.value.isdigit()], atome_1.value), Branch(("Variable", "Number")[atome_2.value.isdigit()], atome_2.value))
         
 
 # --- Secondary functions --- #
-    
+# (empty for the moment)
 
 # ==================================================
-# Tests functions
+# Miscellaneous functions
 # ==================================================
 
 def compylateur(code):
     l_token = lexer(code)
-    print(parser(l_token))
+    print("--- Tokens ---")
+    l_token.generate()
+    print("\n\n--- AST ---")
+    ast = parser(l_token)
+    AST_gen(ast.branch)
