@@ -1,7 +1,7 @@
 # --------------------------------------------------
 # Compylateur (Version 0.0)
-# By Sha-Chan
-# April - May 2020
+# By Sha-Chan~ 
+# from April to June 2020
 #
 # Code provided with licence (CC BY-NC-ND 4.0)
 # For more informations about licence :
@@ -16,7 +16,7 @@
 # --- Tokens --- #
 
 class Token():
-    def __init__(self, token_type, token_value):
+    def __init__(self, token_type = "", token_value = ""):
         self.type = token_type
         self.value = token_value
 
@@ -33,7 +33,7 @@ class TokenList():
         if self.index < len(self.list):
             return self.list[self.index]
         else:
-            return False
+            return self.list[-1]
 
     def generate(self):
         index = 0
@@ -96,7 +96,9 @@ def lexer(prgm_src):
                 
                 target = k.split(" ")
                 
-                if index >= len(word): return l_token
+                if index >= len(word):
+                    l_token.generate()
+                    return l_token
                 
                 if word[index] in target and lexer_detect(word, index, target):
                         l_token.add(Token(name[j], k))
@@ -136,18 +138,31 @@ def text_detecter(word, index, l_token):
 # --- Main function --- #
 
 def parser(l_token):
-    token_ahead = l_token.get()
+    token_ahead = Token()
+    return somme(l_token, token_ahead)
 
 # --- Grammar detection functions --- #
 # (empty for the moment) #
-    
+
+def somme(l_token, token_ahead):
+    token_ahead = expect(l_token, token_ahead, ["VAR", "NUM"])
+    token_ahead = expect(l_token, token_ahead, ["OPTR"])
+    if token_ahead.value == "+":
+        token_ahead = expect(l_token, token_ahead, ["VAR", "NUM"])
+        return True
 
 # --- Secondary functions --- #
 
 def expect(l_token, token_ahead, target = []):
-    last = token_ahead
     token_ahead = l_token.next()
-    if target != [] and last.type not in target:
+    if target != [] and token_ahead.type not in target:
         raise SyntaxError("unknown operand, one of these is expected : " + ", ".join(target))
-    return last
+    return token_ahead
 
+# ==================================================
+# Tests functions
+# ==================================================
+
+def compylateur(code):
+    l_token = lexer(code)
+    print(parser(l_token))
