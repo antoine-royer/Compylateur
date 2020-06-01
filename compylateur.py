@@ -50,6 +50,10 @@ class AST():
     def add_branch(self, branch):
         self.branch.append(branch)
 
+    def generate(self):
+        for i in self.branch:
+            print(i)
+
 class Branch():
     def __init__(self, title, value, *sub_branch):
         self.title = title
@@ -61,6 +65,24 @@ class Branch():
 
     def generate(self):
         return self.title, self.value, self.sub_branch
+
+# --- Parser --- #
+
+class Parser():
+    def __init__(self, l_token):
+        self.l_token = l_token
+        self.token_ahead = Token()
+
+    def expect(self, target = []):
+        last = self.token_ahead
+        self.token_ahead = self.l_token.next()
+        if target != [] and self.token_ahead.type not in target:
+            raise SyntaxError("unknown operand, one of these is expected : " + ", ".join(target))
+        return last
+
+    def atome(self):
+        return self.expect(["VAR", "NUM"])
+        
 
 # ==================================================
 # Lexer
@@ -138,26 +160,23 @@ def text_detecter(word, index, l_token):
 # --- Main function --- #
 
 def parser(l_token):
-    token_ahead = Token()
-    return somme(l_token, token_ahead)
+    parser = Parser(l_token)
+    
+    somme(parser)
 
 # --- Grammar detection functions --- #
-# (empty for the moment) #
+# (only tests function for the moment)
 
-def somme(l_token, token_ahead):
-    token_ahead = expect(l_token, token_ahead, ["VAR", "NUM"])
-    token_ahead = expect(l_token, token_ahead, ["OPTR"])
-    if token_ahead.value == "+":
-        token_ahead = expect(l_token, token_ahead, ["VAR", "NUM"])
-        return True
+
+def somme(parser):
+    atome_1 = parser.atome()
+    if parser.token_ahead.value == "+":
+        parser.expect(["OPTR"])
+        atome_2 = atome()
+        
 
 # --- Secondary functions --- #
-
-def expect(l_token, token_ahead, target = []):
-    token_ahead = l_token.next()
-    if target != [] and token_ahead.type not in target:
-        raise SyntaxError("unknown operand, one of these is expected : " + ", ".join(target))
-    return token_ahead
+    
 
 # ==================================================
 # Tests functions
