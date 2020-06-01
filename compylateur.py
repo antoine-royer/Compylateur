@@ -69,16 +69,16 @@ def AST_gen(branch, tab = 0):
 class Parser():
     def __init__(self, l_token):
         self.l_token = l_token
-        self.token_ahead = Token()
+        self.token_watch = Token()
 
-    def expect(self, target = []):
-        self.token_ahead = self.l_token.next()
-        if target != [] and self.token_ahead.type not in target:
-            raise SyntaxError("This operand was not expected : '{0}'.".format(self.token_ahead.value))
-        return self.token_ahead
+    def read(self, target = []):
+        self.token_watch = self.l_token.next()
+        if target != [] and self.token_watch.type not in target:
+            raise SyntaxError("This operand was not expected : '{0}'".format(self.token_watch.value))
+        return self.token_watch
 
     def atome(self):
-        return self.expect(["VAR", "NUM"])
+        return self.read(["VAR", "NUM"])
         
 
 # ==================================================
@@ -156,8 +156,8 @@ def text_detecter(word, index, l_token):
 
 def parser(l_token):
     parser = Parser(l_token)
-
     ast = AST()
+    
     ast.add_branch(somme(parser))
     
     return ast
@@ -168,11 +168,11 @@ def parser(l_token):
 
 def somme(parser):
     atome_1 = parser.atome()
-    parser.expect(["OPTR"])
-    if parser.token_ahead.value == "+":
+    parser.read(["OPTR"])
+    if parser.token_watch.value == "+":
         atome_2 = parser.atome()
         return Branch("Operation", "+", Branch(("Variable", "Number")[atome_1.value.isdigit()], atome_1.value), Branch(("Variable", "Number")[atome_2.value.isdigit()], atome_2.value))
-        
+    
 
 # --- Secondary functions --- #
 # (empty for the moment)
