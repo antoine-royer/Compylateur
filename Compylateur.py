@@ -73,7 +73,19 @@ class Parser():
         return last
 
     def atome(self):
-        return self.expect(["VAR", "NUM"])
+        atm = self.expect(["VAR", "NUM", "LPAR"])
+        if atm.type in ("VAR", "NUM"):
+            return Node(("Variable", "Number")[atm.type == "NUM"], atm.value)
+        else:
+            e = self.expr()
+            self.expect("RPAR")
+            return e
+
+    def expr(self):
+        atome_1 = self.atome()
+        operator = self.expect(["OPTR"])
+        atome_2 = self.atome()
+        return Node("Operation", operator.value, atome_1, atome_2)
         
 
 # ==================================================
@@ -86,12 +98,14 @@ def lexer(prgm_src):
     var_type = {"des réels", "un réel", "des entiers", "un entiers", "un entier naturel", "des entiers naturels", "un entier relatif", "des entiers relatifs", "une liste", "des listes", "un flottant", "des flottants", "une chaîne de caractères", "des chaînes de caractères"}
     cmnd = {"fin", "finsi", "fin si", "fintantque", "fin tantque", "fin tant que", "finpour", "fin pour", "afficher", "si", "alors", "sinon", "tant que", "tantque", "pour"}
     optr = {"+", "-", "/", "*", "^"}
-    sptr = {"et", "(", ")", "[", "]", "{", "}", "\n", "à", "entre", "de", ",", ";", "faire"}
+    sptr = {"et", "\n", "à", "entre", "de", ",", ";", "faire"}
     comp = {"=", "<", "<=", ">", ">=", "est supérieur à", "est supérieur ou égal à", "est inférieur à", "est inférieur ou égal à", "est différent de", "est égal à"}
     user = {"saisir", "saisir la valeur de", "saisir les valeurs de", "demander la valeur de", "demander à l'utilisateur la valeur de"}
     logi = {"et que", "ou que"}
     assi = {"prend la valeur", "sont", "est"}
     rang = {"allant", "variant"}
+    lpar = {"("}
+    rpar = {")"}
     
     for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
         prgm_src = prgm_src.replace(i, " " + i + " ")
@@ -100,8 +114,8 @@ def lexer(prgm_src):
     l_token = TokenList()
     index, undef = 0, bool()
 
-    token = (var_type, cmnd, optr, comp, user, logi, assi, sptr, rang)
-    name = ("TYPE", "CMND", "OPTR", "COMP", "USER", "LOGI", "ASSI", "SPTR", "RANG")
+    token = (var_type, cmnd, optr, comp, user, logi, assi, sptr, rang, lpar, rpar)
+    name = ("TYPE", "CMND", "OPTR", "COMP", "USER", "LOGI", "ASSI", "SPTR", "RANG", "LPAR", "RPAR")
 
     while True:
         undef = True
@@ -150,27 +164,18 @@ def text_detecter(word, index, l_token):
 # --- Main function --- #
 
 def parser(l_token):
-    parser = Parser(l_token)
+    par = Parser(l_token)
     ast = Node("Programm", "")
+    ast.add_node(par.expr())
     
-    ast.add_node(expr(parser, []))
     
     return ast
 
-# --- Grammar detection functions --- #
-# (only test functions for the moment)
 
-
-def expr(parser, expr_backward):
-    expr_backward.append(parser.atome())
-    expr_backward.append(parser.expect(["OPTR"]))
-    expr_backward.append(parser.atome())
-    
-    return Node("Operation", expr_backward[1].value, Node(("Variable", "Number")[expr_backward[0].value.isdigit()], expr_backward[0].value), Node(("Variable", "Number")[expr_backward[2].value.isdigit()], expr_backward[2].value))
-    
 
 # --- Secondary functions --- #
 # (empty for the moment)
+
 
 # ==================================================
 # Miscellaneous functions
