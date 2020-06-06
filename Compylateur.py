@@ -82,12 +82,16 @@ class Parser():
             return e
 
     def sum(self):
-        atome_1 = self.product()
-        if self.token_ahead.type not in ("PLUS", "MINUS"):
-            return atome_1
-        op = self.expect()
-        sum_1 = self.sum()
-        return Node("Operation", op.value, atome_1, sum_1)
+        atomes = [self.product()]
+
+        while self.token_ahead.type in ("PLUS", "MINUS"):
+            operator = self.expect()
+            atome_after = self.product()
+            atomes.append((atome_after, Node("Operation", "--", atome_after))[operator.type == "MINUS"])
+
+        return Node("Operation", "+", *atomes)
+            
+        
 
     def product(self):
         atome_1 = self.exp()
