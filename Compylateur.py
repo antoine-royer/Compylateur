@@ -77,16 +77,33 @@ class Parser():
         if atm.type in ("VAR", "NUM"):
             return Node(("Variable", "Number")[atm.type == "NUM"], atm.value)
         else:
-            e = self.expr()
+            e = self.sum()
             self.expect("RPAR")
             return e
 
-    def expr(self):
+    def sum(self):
+        atome_1 = self.product()
+        if self.token_ahead.type not in ("PLUS", "MINUS"):
+            return atome_1
+        op = self.expect()
+        sum_1 = self.sum()
+        return Node("Operation", op.value, atome_1, sum_1)
+
+    def product(self):
+        atome_1 = self.exp()
+        if self.token_ahead.type not in ("MULTI", "DIVI"):
+            return atome_1
+        op = self.expect()
+        product_1 = self.product()
+        return Node("Operation", op.value, atome_1, product_1)
+
+    def exp(self):
         atome_1 = self.atome()
-        operator = self.expect(["OPTR"])
+        if self.token_ahead.type != "EXP":
+            return atome_1
+        op = self.expect()
         atome_2 = self.atome()
-        return Node("Operation", operator.value, atome_1, atome_2)
-        
+        return Node("Operation", op.value, atome_1, atome_2)
 
 # ==================================================
 # Lexer
@@ -97,7 +114,6 @@ class Parser():
 def lexer(prgm_src):    
     var_type = {"des réels", "un réel", "des entiers", "un entiers", "un entier naturel", "des entiers naturels", "un entier relatif", "des entiers relatifs", "une liste", "des listes", "un flottant", "des flottants", "une chaîne de caractères", "des chaînes de caractères"}
     cmnd = {"fin", "finsi", "fin si", "fintantque", "fin tantque", "fin tant que", "finpour", "fin pour", "afficher", "si", "alors", "sinon", "tant que", "tantque", "pour"}
-    optr = {"+", "-", "/", "*", "^"}
     sptr = {"et", "\n", "à", "entre", "de", ",", ";", "faire"}
     comp = {"=", "<", "<=", ">", ">=", "est supérieur à", "est supérieur ou égal à", "est inférieur à", "est inférieur ou égal à", "est différent de", "est égal à"}
     user = {"saisir", "saisir la valeur de", "saisir les valeurs de", "demander la valeur de", "demander à l'utilisateur la valeur de"}
@@ -106,6 +122,11 @@ def lexer(prgm_src):
     rang = {"allant", "variant"}
     lpar = {"("}
     rpar = {")"}
+    plus = {"+"}
+    moins = {"-"}
+    fois = {"*"}
+    divis = {"/"}
+    exp = {"^"}
     
     for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
         prgm_src = prgm_src.replace(i, " " + i + " ")
@@ -114,8 +135,8 @@ def lexer(prgm_src):
     l_token = TokenList()
     index, undef = 0, bool()
 
-    token = (var_type, cmnd, optr, comp, user, logi, assi, sptr, rang, lpar, rpar)
-    name = ("TYPE", "CMND", "OPTR", "COMP", "USER", "LOGI", "ASSI", "SPTR", "RANG", "LPAR", "RPAR")
+    token = (var_type, cmnd, comp, user, logi, assi, sptr, rang, lpar, rpar, plus, moins, fois, divis, exp)
+    name = ("TYPE", "CMND", "COMP", "USER", "LOGI", "ASSI", "SPTR", "RANG", "LPAR", "RPAR", "PLUS", "MINUS", "MULTI", "DIVI", "EXP")
 
     while True:
         undef = True
@@ -166,7 +187,7 @@ def text_detecter(word, index, l_token):
 def parser(l_token):
     par = Parser(l_token)
     ast = Node("Programm", "")
-    ast.add_node(par.expr())
+    ast.add_node(par.sum())
     
     
     return ast
