@@ -72,14 +72,24 @@ class Parser():
             raise SyntaxError("This operand was not expected : '{0}' (for dev : {1})".format(last.value, target))
         return last
 
-    def atome(self):
-        atm = self.expect(["VAR", "NUM", "LPAR"])
-        if atm.type in ("VAR", "NUM"):
-            return Node(("Variable", "Number")[atm.type == "NUM"], atm.value)
+    def expr(self): return self.sum()
+    
+    def atome(self, minus = False):
+        atm = self.expect(["VAR", "NUM", "LPAR", "MINUS"])
+        
+        if atm.type == "MINUS": return self.atome(not minus)
+        elif atm.type == "VAR":
+            #if self.token_ahead.type == "LPAR"
+            if minus: return Node("Operation", "--", Node("Variable", atm.value))
+            else: return Node("Variable", atm.value)
+
+        elif atm.type == "NUM":
+            return Node("Number", (atm.value, -atm.value)[minus])
         else:
-            e = self.sum()
+            e = self.expr()
             self.expect("RPAR")
-            return e
+            if minus: return Node("Operation", "--", e)
+            else: return e
 
     def sum(self):
         atomes = [self.product()]
@@ -87,19 +97,19 @@ class Parser():
         while self.token_ahead.type in ("PLUS", "MINUS"):
             operator = self.expect()
             atome_after = self.product()
-            atomes.append((atome_after, Node("Operation", "--", atome_after))[operator.type == "MINUS"])
+            atomes.append((atome_after, Node("Operation", "-", atome_after))[operator.type == "MINUS"])
 
-        return Node("Operation", "+", *atomes)
+        return (Node("Operation", "+", *atomes), atomes[0])[len(atomes) == 1]
             
-        
-
     def product(self):
-        atome_1 = self.exp()
-        if self.token_ahead.type not in ("MULTI", "DIVI"):
-            return atome_1
-        op = self.expect()
-        product_1 = self.product()
-        return Node("Operation", op.value, atome_1, product_1)
+        atomes = [self.exp()]
+        
+        while self.token_ahead.type in ("MULTI", "DIVI"):
+            operator = self.expect()
+            atome_after = self.exp()
+            atomes.append((atome_after, Node("Operation", "1/", atome_after))[operator.type == "DIVI"])
+
+        return (Node("Operation", "*", *atomes), atomes[0])[len(atomes) == 1]
 
     def exp(self):
         atome_1 = self.atome()
@@ -116,21 +126,15 @@ class Parser():
 # --- Main function --- #
 
 def lexer(prgm_src):    
-    var_type = {"des réels", "un réel", "des entiers", "un entiers", "un entier naturel", "des entiers naturels", "un entier relatif", "des entiers relatifs", "une liste", "des listes", "un flottant", "des flottants", "une chaîne de caractères", "des chaînes de caractères"}
-    cmnd = {"fin", "finsi", "fin si", "fintantque", "fin tantque", "fin tant que", "finpour", "fin pour", "afficher", "si", "alors", "sinon", "tant que", "tantque", "pour"}
-    sptr = {"et", "\n", "à", "entre", "de", ",", ";", "faire"}
-    comp = {"=", "<", "<=", ">", ">=", "est supérieur à", "est supérieur ou égal à", "est inférieur à", "est inférieur ou égal à", "est différent de", "est égal à"}
-    user = {"saisir", "saisir la valeur de", "saisir les valeurs de", "demander la valeur de", "demander à l'utilisateur la valeur de"}
-    logi = {"et que", "ou que"}
-    assi = {"prend la valeur", "sont", "est"}
-    rang = {"allant", "variant"}
-    lpar = {"("}
-    rpar = {")"}
-    plus = {"+"}
-    moins = {"-"}
-    fois = {"*"}
-    divis = {"/"}
-    exp = {"^"}
+    token = {
+        "(":"LPAR",
+        ")":"RPAR",
+        "+":"PLUS",
+        "-":"MINUS",
+        "*":"MULTI",
+        "/":"DIVI",
+        "^":"EXP",
+        ",":"COMMA"}
     
     for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
         prgm_src = prgm_src.replace(i, " " + i + " ")
@@ -139,29 +143,29 @@ def lexer(prgm_src):
     l_token = TokenList()
     index, undef = 0, bool()
 
-    token = (var_type, cmnd, comp, user, logi, assi, sptr, rang, lpar, rpar, plus, moins, fois, divis, exp)
-    name = ("TYPE", "CMND", "COMP", "USER", "LOGI", "ASSI", "SPTR", "RANG", "LPAR", "RPAR", "PLUS", "MINUS", "MULTI", "DIVI", "EXP")
-
-    while True:
+    while index < len(word):
         undef = True
-        for j in range(len(token)):
-            for k in token[j]:
-                
-                target = k.split(" ")
-                
-                if index >= len(word): return l_token
-                
-                if word[index] in target and lexer_detect(word, index, target):
-                        l_token.add(Token(name[j], k))
-                        undef = False
-                        index += len(target)
+
+        for target in token.keys():                
+            name = token[target]
+               
+            if word[index] in target and lexer_detect(word, index, target):
+                    l_token.add(Token(name, target))
+                    undef = False
+                    index += len(target)
+                    break
         
 
         if undef and word[index] == "\"":
             l_token, index = text_detecter(word, index, l_token)
         elif undef:
-            l_token.add(Token(("VAR", "NUM")[word[index].isdigit()], word[index]))
+            if word[index].isdigit():
+                l_token.add(Token("NUM", eval(word[index])))
+            else:
+                l_token.add(Token("VAR", word[index]))
             index += 1
+            
+    return l_token
 
 # --- Secondary functions --- #
 
