@@ -79,7 +79,10 @@ class Parser():
         
         if atm.type == "MINUS": return self.atome(not minus)
         elif atm.type == "VAR":
-            #if self.token_ahead.type == "LPAR"
+            if self.token_ahead.type == "LPAR":
+                self.expect()
+                return Node("Function", atm.value, *self.fct())
+            
             if minus: return Node("Operation", "--", Node("Variable", atm.value))
             else: return Node("Variable", atm.value)
 
@@ -91,6 +94,14 @@ class Parser():
             if minus: return Node("Operation", "--", e)
             else: return e
 
+    def fct(self):
+        param = list()
+        while self.token_ahead.type != "RPAR":
+            if self.token_ahead.type in ("VAR", "NUM", "MINUS"):
+                param.append(Node("Parameter", "#{}".format(len(param)+1), self.expr()))
+            else: self.expect(["COMMA", "RPAR"])
+        return param
+    
     def sum(self):
         atomes = [self.product()]
 
