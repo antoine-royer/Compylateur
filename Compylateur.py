@@ -95,12 +95,14 @@ class Parser():
             else: return e
 
     def fct(self):
-        param = list()
-        while self.token_ahead.type != "RPAR":
-            if self.token_ahead.type in ("VAR", "NUM", "MINUS"):
-                param.append(Node("Parameter", "#{}".format(len(param)+1), self.expr()))
-            else: self.expect(["COMMA", "RPAR"])
-        return param
+      param = list()
+      while self.token_ahead.type != "RPAR":
+        param.append(self.expr())
+        if self.token_ahead.type == "RPAR":
+          break
+        self.expect(["COMMA"])
+      self.expect(["RPAR"])
+      return param
     
     def sum(self):
         atomes = [self.product()]
