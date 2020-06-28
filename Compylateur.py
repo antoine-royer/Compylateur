@@ -8,9 +8,8 @@
 # https://creativecommons.org/licenses/by-nc-nd/4.0/
 # --------------------------------------------------
 
-
 # ==================================================
-# Objects code
+# Tokens and Abstract syntax tree
 # ==================================================
 
 # --- Tokens --- #
@@ -55,27 +54,111 @@ class Node():
 
 def AST_gen(node, tab = 0):
     for i in node:
-        print(tab * "  " + "{0} : {1}".format(i.gen()[0], i.gen()[1]))
-        if i.gen()[2]: AST_gen(i.gen()[2], tab + 1)
+        print(tab * "    " + "{0} : {1}".format(i.gen()[0], i.gen()[1]))
+        if i.gen()[2]: AST_gen(i.gen()[2], tab + 1)   
 
-# --- Parser --- #
+# ==================================================
+# Lexer
+# ================================================== 
+
+# --- Main function --- #
+
+def lexer(prgm_src):    
+    token = {
+        "(":"LPAR",
+        ")":"RPAR",
+        "+":"PLUS",
+        "-":"MINUS",
+        "*":"MULTI",
+        "/":"DIVI",
+        "^":"EXP",
+        ",":"COMMA",
+        "=":"EQUAL",
+        "\n":"NLINE"
+        "est supérieur à":"SUP", ">":"SUP", "est plus grand que":"SUP",
+        "est supérieur ou égal à":"SUP_EGA", ">=":"SUP_EGA", "≥":"SUP_EGA", "est plus grand ou égal à":"SUP_EGA",
+        "est inférieur à":"INF", "<":"INF", "≤":"INF_EGA", "est plus petit que":"INF",
+        "est inférieur ou égal à":"INF_EGA", "<=":"INF_EGA", "est plus petit ou égal à":"INF_EGA",
+        "est égal à":"EGA", "==":"EGA", "égal":"EGA", "égale":"EGA",
+        "est différent de":"DIF", "!=":"DIF", "≠":"DIF",
+        "ou":"OR",
+        "et":"AND",
+        "affecter à":"AFFECT", "prend la valeur":"TAKE", "est initialisé à":"TAKE",
+        "demander la valeur de":"REQUEST", "on demande la valeur de":"REQUEST", "saisir la valeur de":"REQUEST", "saisir":"REQUEST", "à l'utilisateur":"USER", "la valeur":"VALUE",
+        "fin":"END", "fin si":"END", "fin pour":"END", "fin tant que":"END", "faire":"DO",
+        "si":"IF", "alors":"THEN", "sinon, si":"ELIF", "sinon":"ELSE",
+        "pour":"FOR", "allant de":"INTER_ST", "variant entre":"INTER_ST", "variant de":"INTER_ST", "à":"INTER_ED", "jusqu'à":"INTER_ED"}
+    
+    for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
+        prgm_src = prgm_src.replace(i, " " + i + " ")
+    word = [i for i in prgm_src.lower().split(" ") if i != ""]
+
+    l_token = TokenList()
+    index, undef = 0, bool()
+
+    while index < len(word):
+        undef = True
+
+        for target in token.keys():                
+            name, value, target = token[target], target, target.split(" ")
+        
+            if word[index] == target[0] and lexer_detect(word, index, target):
+                    l_token.add(Token(name, value))
+                    undef = False
+                    index += len(target)
+                    break
+        
+
+        if undef and word[index] == '"':
+            l_token, index = text_detecter(word, index, l_token)
+        elif undef:
+            if word[index].isdigit():
+                l_token.add(Token("NUM", eval(word[index])))
+            else:
+                l_token.add(Token("VAR", word[index]))
+            index += 1
+            
+    return l_token
+
+# --- Secondary functions --- #
+
+def lexer_detect(word, index, target):
+    try:
+        return not 0 in [target[i] == word[i + index] for i in range(len(target))]
+    except:
+        return 0
+
+def text_detecter(word, index, l_token):
+    txt = word[index]
+    index += 1
+    while word[index] != '"':
+        txt = txt + " " + word[index]
+        index += 1
+    l_token.add(Token("TEXT", txt + ' "'))
+    return l_token, index + 1
+
+# ==================================================
+# Parser
+# ==================================================
 
 class Parser():
     def __init__(self, l_token):
         self.l_token = l_token
         self.token_ahead = l_token.list[0]
 
-    def expect(self, target = []):
+    def expect(self, *target):
         last = self.token_ahead
         self.token_ahead = self.l_token.next()
-        if target != [] and last.type not in target:
+        if target != () and last.type not in target:
             raise SyntaxError("This operand was not expected : '{0}' (for dev : {1})".format(last.value, target))
         return last
 
+    # --- Arithmetic's rules --- #
+    
     def expr(self): return self.sum()
     
     def atome(self, minus = False):
-        atm = self.expect(["VAR", "NUM", "LPAR", "MINUS"])
+        atm = self.expect("VAR", "NUM", "LPAR", "MINUS")
         
         if atm.type == "MINUS": return self.atome(not minus)
         elif atm.type == "VAR":
@@ -100,8 +183,8 @@ class Parser():
         param.append(self.expr())
         if self.token_ahead.type == "RPAR":
           break
-        self.expect(["COMMA"])
-      self.expect(["RPAR"])
+        self.expect("COMMA")
+      self.expect("RPAR")
       return param
     
     def sum(self):
@@ -132,92 +215,116 @@ class Parser():
         atome_2 = self.atome()
         return Node("Operation", op.value, atome_1, atome_2)
 
-# ==================================================
-# Lexer
-# ================================================== 
-
-# --- Main function --- #
-
-def lexer(prgm_src):    
-    token = {
-        "(":"LPAR",
-        ")":"RPAR",
-        "+":"PLUS",
-        "-":"MINUS",
-        "*":"MULTI",
-        "/":"DIVI",
-        "^":"EXP",
-        ",":"COMMA"}
+    # --- Comparison and Condition's rules --- #
     
-    for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
-        prgm_src = prgm_src.replace(i, " " + i + " ")
-    word = [i for i in prgm_src.lower().split(" ") if i != ""]
+    def condition(self): return self.condition_or()
 
-    l_token = TokenList()
-    index, undef = 0, bool()
+    def condition_or(self):
+        elmnt_1 = self.condition_and()
+        if self.token_ahead.type != "OR": return elmnt_1
+        self.expect()
+        elmnt_2 = self.condition_and()
+        return Node("Condition", "OR", elmnt_1, elmnt_2)
 
-    while index < len(word):
-        undef = True
+    def condition_and(self):
+        elmnt_1 = self.comparison_1()
+        if self.token_ahead.type != "AND": return elmnt_1
+        self.expect()
+        elmnt_2 = self.comparison_1()
+        return Node("Condition", "AND", elmnt_1, elmnt_2)
 
-        for target in token.keys():                
-            name = token[target]
-               
-            if word[index] in target and lexer_detect(word, index, target):
-                    l_token.add(Token(name, target))
-                    undef = False
-                    index += len(target)
-                    break
+    def comparison_1(self):
+        elmnt_1 = self.comparison_2()
+        if self.token_ahead.type not in ("EGA", "DIF"): return elmnt_1
+        comp = self.expect()
+        elmnt_2 = self.comparison_2()
+        return Node("Comparison", comp.type, elmnt_1, elmnt_2)
+        
+    def comparison_2(self):
+        elmnt_1 = self.expr()
+        if self.token_ahead.type not in ("SUP", "SUP_EGA", "INF", "INF_EGA"): return elmnt_1
+        comp = self.expect()
+        elmnt_2 = self.expr()
+        return Node("Comparison", comp.type, elmnt_1, elmnt_2)
+
+    # --- Statements's rules --- #
+
+    def block(self):
+        ast = Node("Block", "")
+        while self.token_ahead.type in ("AFFECT," "REQUEST", "VAR", "IF", "FOR"): ast.add_node(self.statement())
+        return ast
+        
+    
+    def statement(self):
+        if self.token_ahead.type in ("AFFECT", "REQUEST", "VAR"): return self.assignement()
+        elif self.token_ahead.type == "IF": return self.statement_if()
+        elif self.token_ahead.type == "FOR": return self.statement_for()
+
+    def assignement(self):
+        value = None
+        if self.token_ahead.type == "AFFECT":
+            self.expect()
+            var = self.expect("VAR")
+            self.expect("VALUE")
+            value = self.expr()
+        elif self.token_ahead.type == "REQUEST":
+            self.expect()
+            var = self.expect("VAR")
+            if self.token_ahead.type == "USER": self.expect()
+        elif self.token_ahead.type == "VAR":
+            var = self.expect()
+            self.expect("TAKE")
+            value = self.expr()
+        if value: return Node("Assignement","", Node("Variable",var.value), value)
+        else: return Node("User's request", "", Node("Variable", var.value))
+
+    def statement_if(self):
+        self.expect("IF")
+        cond_1 = self.condition()
+        self.expect("THEN", "COMMA", "DO")
+        block_1 = self.block()
+        ast = Node("Statement", "if", cond_1, block_1)
+        while self.token_ahead.type in ("ELIF", "ELSE"):
+            type_if = self.expect()
+            if type_if.type == "ELIF":
+                cond_2 = self.condition()
+                self.expect("THEN", "COMMA", "DO")
+                block_2 = self.block()
+                ast.add_node(Node("Statement", "elif", cond_2, block_2))
+            else:
+                block_2 = self.block()
+                ast.add_node(Node("Statement", "else", block_2))
+        self.expect("END")
+        return ast
+
+    def statement_for(self):
+        self.expect("FOR")
+        it_var = self.expect("VAR")
+        self.expect("INTER_ST")
+        start_value = self.expr()
+        self.expect("INTER_ED")
+        end_value = self.expr()
+        self.expect("COMMA", "DO")
+        ast = Node("Statement", "for", Node("Incremented variable", it_var.value), Node("Start value", start_value.value), Node("End value", end_value.value))
+        ast.add_node(self.block())
+        self.expect("END")
+        return ast
+            
         
 
-        if undef and word[index] == "\"":
-            l_token, index = text_detecter(word, index, l_token)
-        elif undef:
-            if word[index].isdigit():
-                l_token.add(Token("NUM", eval(word[index])))
-            else:
-                l_token.add(Token("VAR", word[index]))
-            index += 1
+    
+        
             
-    return l_token
+            
 
 # --- Secondary functions --- #
-
-def lexer_detect(word, index, target):
-    try:
-        return not 0 in [target[i] == word[i + index] for i in range(len(target))]
-    except:
-        return 0
-
-def text_detecter(word, index, l_token):
-    txt = word[index]
-    index += 1
-    while word[index] != '"':
-        txt = txt + " " + word[index]
-        index += 1
-    l_token.add(Token("TEXT", txt + ' "'))
-    return l_token, index + 1
-
-    
-
-# ==================================================
-# Parser
-# ==================================================
-
-# --- Main function --- #
 
 def parser(l_token):
     par = Parser(l_token)
     ast = Node("Programm", "")
-    ast.add_node(par.sum())
-    
+    ast.add_node(par.statement_for())
     
     return ast
-
-
-
-# --- Secondary functions --- #
-# (empty for the moment)
-
 
 # ==================================================
 # Miscellaneous functions
