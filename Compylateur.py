@@ -63,7 +63,8 @@ def AST_gen(node, tab = 0):
 
 # --- Main function --- #
 
-def lexer(prgm_src):    
+def lexer(prgm_src):
+    prgm_src = prgm_src.replace("\n", " ")
     token = {
         "(":"LPAR",
         ")":"RPAR",
@@ -74,7 +75,6 @@ def lexer(prgm_src):
         "^":"EXP",
         ",":"COMMA",
         "=":"EQUAL",
-        "\n":"NLINE"
         "est supérieur à":"SUP", ">":"SUP", "est plus grand que":"SUP",
         "est supérieur ou égal à":"SUP_EGA", ">=":"SUP_EGA", "≥":"SUP_EGA", "est plus grand ou égal à":"SUP_EGA",
         "est inférieur à":"INF", "<":"INF", "≤":"INF_EGA", "est plus petit que":"INF",
@@ -84,10 +84,12 @@ def lexer(prgm_src):
         "ou":"OR",
         "et":"AND",
         "affecter à":"AFFECT", "prend la valeur":"TAKE", "est initialisé à":"TAKE",
+        "afficher":"DISPLAY",
         "demander la valeur de":"REQUEST", "on demande la valeur de":"REQUEST", "saisir la valeur de":"REQUEST", "saisir":"REQUEST", "à l'utilisateur":"USER", "la valeur":"VALUE",
-        "fin":"END", "fin si":"END", "fin pour":"END", "fin tant que":"END", "faire":"DO",
+        "fin si":"END_IF", "fin pour":"END_FOR", "fin tant que":"END_WHILE", "fin tantque":"END_WHILE", "faire":"DO",
         "si":"IF", "alors":"THEN", "sinon, si":"ELIF", "sinon":"ELSE",
-        "pour":"FOR", "allant de":"INTER_ST", "variant entre":"INTER_ST", "variant de":"INTER_ST", "à":"INTER_ED", "jusqu'à":"INTER_ED"}
+        "pour":"FOR", "allant de":"INTER_ST", "variant entre":"INTER_ST", "variant de":"INTER_ST", "à":"INTER_ED", "jusqu'à":"INTER_ED",
+        "tant que":"WHILE", "tantque":"WHILE"}
     
     for i in {"=", "<", "<=", ">", ">=", "+", "-", "/", "*", "^", "(", ")", "[", "]", "{", "}", '"', "\n", ",", ";"}:
         prgm_src = prgm_src.replace(i, " " + i + " ")
@@ -251,14 +253,16 @@ class Parser():
 
     def block(self):
         ast = Node("Block", "")
-        while self.token_ahead.type in ("AFFECT," "REQUEST", "VAR", "IF", "FOR"): ast.add_node(self.statement())
+        while self.token_ahead.type in ("AFFECT," "REQUEST", "VAR", "DISPLAY", "IF", "FOR", "WHILE"): ast.add_node(self.statement())
         return ast
         
     
     def statement(self):
         if self.token_ahead.type in ("AFFECT", "REQUEST", "VAR"): return self.assignement()
+        elif self.token_ahead.type == "DISPLAY": return self.display()
         elif self.token_ahead.type == "IF": return self.statement_if()
         elif self.token_ahead.type == "FOR": return self.statement_for()
+        elif self.token_ahead.type == "WHILE": return self.statement_while()
 
     def assignement(self):
         value = None
@@ -278,8 +282,13 @@ class Parser():
         if value: return Node("Assignement","", Node("Variable",var.value), value)
         else: return Node("User's request", "", Node("Variable", var.value))
 
+    def display(self):
+        self.expect()
+        text = self.expect("TEXT", "VAR", "NUM")
+        return Node("Display", text.value)
+
     def statement_if(self):
-        self.expect("IF")
+        self.expect()
         cond_1 = self.condition()
         self.expect("THEN", "COMMA", "DO")
         block_1 = self.block()
@@ -294,11 +303,11 @@ class Parser():
             else:
                 block_2 = self.block()
                 ast.add_node(Node("Statement", "else", block_2))
-        self.expect("END")
+        self.expect("END_IF")
         return ast
 
     def statement_for(self):
-        self.expect("FOR")
+        self.expect()
         it_var = self.expect("VAR")
         self.expect("INTER_ST")
         start_value = self.expr()
@@ -307,22 +316,23 @@ class Parser():
         self.expect("COMMA", "DO")
         ast = Node("Statement", "for", Node("Incremented variable", it_var.value), Node("Start value", start_value.value), Node("End value", end_value.value))
         ast.add_node(self.block())
-        self.expect("END")
+        self.expect("END_FOR")
         return ast
-            
-        
 
-    
-        
-            
-            
+    def statement_while(self):
+        self.expect()
+        condition = self.condition()
+        self.expect("COMMA", "DO")
+        block = self.block()
+        self.expect("END_WHILE")
+        return Node("Statement", "while", condition, block)            
 
 # --- Secondary functions --- #
 
 def parser(l_token):
     par = Parser(l_token)
     ast = Node("Programm", "")
-    ast.add_node(par.statement_for())
+    ast.add_node(par.statement())
     
     return ast
 
