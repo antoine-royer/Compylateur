@@ -87,7 +87,7 @@ def lexer(prgm_src):
         "afficher":"DISPLAY",
         "demander la valeur de":"REQUEST", "on demande la valeur de":"REQUEST", "saisir la valeur de":"REQUEST", "saisir":"REQUEST", "à l'utilisateur":"USER", "la valeur":"VALUE",
         "fin si":"END_IF", "fin pour":"END_FOR", "fin tant que":"END_WHILE", "fin tantque":"END_WHILE", "faire":"DO",
-        "si":"IF", "alors":"THEN", "sinon, si":"ELIF", "sinon":"ELSE",
+        "si":"IF", "alors":"THEN", "sinon , si":"ELIF", "sinon":"ELSE",
         "pour":"FOR", "allant de":"INTER_ST", "variant entre":"INTER_ST", "variant de":"INTER_ST", "à":"INTER_ED", "jusqu'à":"INTER_ED",
         "tant que":"WHILE", "tantque":"WHILE"}
     
@@ -112,7 +112,7 @@ def lexer(prgm_src):
         
 
         if undef and word[index] == '"':
-            l_token, index = text_detecter(word, index, l_token)
+            l_token, index = text_detecter(word, index + 1, l_token)
         elif undef:
             if word[index].isdigit():
                 l_token.add(Token("NUM", eval(word[index])))
@@ -136,7 +136,7 @@ def text_detecter(word, index, l_token):
     while word[index] != '"':
         txt = txt + " " + word[index]
         index += 1
-    l_token.add(Token("TEXT", txt + ' "'))
+    l_token.add(Token("TEXT", '"' + txt + '"'))
     return l_token, index + 1
 
 # ==================================================
@@ -253,7 +253,8 @@ class Parser():
 
     def block(self):
         ast = Node("Block", "")
-        while self.token_ahead.type in ("AFFECT," "REQUEST", "VAR", "DISPLAY", "IF", "FOR", "WHILE"): ast.add_node(self.statement())
+        while self.token_ahead.type in ("AFFECT", "REQUEST", "VAR", "DISPLAY", "IF", "FOR", "WHILE"):
+            ast.add_node(self.statement())
         return ast
         
     
@@ -266,45 +267,61 @@ class Parser():
 
     def assignement(self):
         value = None
+        
+        if self.token_ahead.type == "REQUEST":
+            self.expect()
+            var = self.expect("VAR")
+            if self.token_ahead.type == "USER": self.expect()
+            return Node("User's request", "", Node("Variable", var.value))
+
         if self.token_ahead.type == "AFFECT":
             self.expect()
             var = self.expect("VAR")
             self.expect("VALUE")
             value = self.expr()
-        elif self.token_ahead.type == "REQUEST":
-            self.expect()
-            var = self.expect("VAR")
-            if self.token_ahead.type == "USER": self.expect()
+        
         elif self.token_ahead.type == "VAR":
             var = self.expect()
             self.expect("TAKE")
             value = self.expr()
-        if value: return Node("Assignement","", Node("Variable",var.value), value)
-        else: return Node("User's request", "", Node("Variable", var.value))
+            
+        return Node("Assignement","", Node("Variable", var.value), value)
 
     def display(self):
         self.expect()
-        text = self.expect("TEXT", "VAR", "NUM")
-        return Node("Display", text.value)
+        text = Node("Display", "")
+        if self.token_ahead.type in ("VAR", "NUM", "LPAR"):
+            text.add_node(Node("Expression", "", self.expr()))
+        else:
+            text.add_node(Node("Text", self.expect("TEXT").value))
+        
+        while self.token_ahead.type == "COMMA":
+            self.expect()
+            if self.token_ahead.type in ("VAR", "NUM", "LPAR"):
+                text.add_node(Node("Expression", "", self.expr()))
+            else:
+                text.add_node(Node("Text", self.expect("TEXT").value))
+        return text
 
     def statement_if(self):
         self.expect()
         cond_1 = self.condition()
         self.expect("THEN", "COMMA", "DO")
         block_1 = self.block()
-        ast = Node("Statement", "if", cond_1, block_1)
-        while self.token_ahead.type in ("ELIF", "ELSE"):
-            type_if = self.expect()
-            if type_if.type == "ELIF":
-                cond_2 = self.condition()
-                self.expect("THEN", "COMMA", "DO")
-                block_2 = self.block()
-                ast.add_node(Node("Statement", "elif", cond_2, block_2))
-            else:
-                block_2 = self.block()
-                ast.add_node(Node("Statement", "else", block_2))
+        ast = [cond_1, block_1]
+        while self.token_ahead.type == "ELIF":
+            self.expect()
+            ast.append(self.condition())
+            self.expect("THEN", "COMMA", "DO")
+            ast.append(self.block())
+        if self.token_ahead.type == "ELSE":
+            self.expect()
+            ast.append((self.block()))
+        
         self.expect("END_IF")
-        return ast
+        return Node("Statement", "if", *ast)
+
+        
 
     def statement_for(self):
         self.expect()
@@ -332,7 +349,7 @@ class Parser():
 def parser(l_token):
     par = Parser(l_token)
     ast = Node("Programm", "")
-    ast.add_node(par.statement())
+    ast.add_node(par.block())
     
     return ast
 
@@ -340,7 +357,8 @@ def parser(l_token):
 # Miscellaneous functions
 # ==================================================
 
-def compylateur(code):
+def compylateur(code, file = False):
+    if file: code = open(code + ".txt", 'r').read()
     
     l_token = lexer(code)
     print("--- Tokens ---")

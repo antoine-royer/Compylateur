@@ -1,0 +1,6 @@
+saisir a
+si a est égal à 0 alors
+afficher "Gagné !"
+sinon
+afficher "Perdu…"
+fin si
