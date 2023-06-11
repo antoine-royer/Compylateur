@@ -388,16 +388,17 @@ def node_interpreter(node):
             return "print(f\"{" + node_interpreter(node.sub_node[0]) + "}\")"
 
     if node.type == "Statement":
+        instructions = ast_interpreter(node.sub_node[1:]).split("\n")
+        instructions = "\n    ".join(instructions)
+        
         if node.value == "if":
-            instructions = ast_interpreter(node.sub_node[1:]).split("\n")
-            instructions = "\n    ".join(instructions)
             return  f"if {node_interpreter(node.sub_node[0])}:\n    {instructions}\n"
 
         elif node.value == "for":
             pass
-
+            
         elif node.value == "while":
-            pass
+            return  f"while {node_interpreter(node.sub_node[0])}:\n    {instructions}\n"
 
     if node.type == "Comparison":
         if node.value == "EGA":
