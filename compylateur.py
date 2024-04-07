@@ -226,7 +226,8 @@ class Parser():
 
     # --- Comparison and Condition's rules --- #
     
-    def condition(self): return self.condition_or()
+    def condition(self):
+        return self.condition_or()
 
     def condition_or(self):
         elmnt_1 = self.condition_and()
@@ -371,12 +372,19 @@ def node_interpreter(node):
     
     if node.type in ("Number", "Text", "Variable"):
         return node.value
-    
-    elif node.type == "Operation":
-        if node.value == "1/":
-            return f"1 / {node_interpreter(node.sub_node[0])}"
 
-        return f"{node_interpreter(node.sub_node[0])} {node.value} {node_interpreter(node.sub_node[1])}"
+    if node.type == "User's request":
+        return f"{node.sub_node[0].value} = input(\"{node.sub_node[0].value} \")\n"
+    
+    if node.type == "Operation":
+        if node.value == "1/":
+            return f"(1 / {node_interpreter(node.sub_node[0])})"
+
+        elif node.value == "-":
+            return f"(-{node_interpreter(node.sub_node[0])})"
+
+        else:
+            return f"{node_interpreter(node.sub_node[0])} {node.value} {node_interpreter(node.sub_node[1])}"
     
     if node.type == "Expression":
         return node_interpreter(node.sub_node[0])
@@ -385,20 +393,26 @@ def node_interpreter(node):
         if node.sub_node[0].type == "Text":
             return f"print({node.sub_node[0].value})\n"
         elif node.sub_node[0].type == "Expression":
-            return "print(f\"{" + node_interpreter(node.sub_node[0]) + "}\")"
+            return "print(f\"{" + node_interpreter(node.sub_node[0]) + "}\")\n"
 
     if node.type == "Statement":
         instructions = ast_interpreter(node.sub_node[1:]).split("\n")
         instructions = "\n    ".join(instructions)
         
         if node.value == "if":
-            return  f"if {node_interpreter(node.sub_node[0])}:\n    {instructions}\n"
+            return f"if {node_interpreter(node.sub_node[0])}:\n    {instructions}\n"
 
         elif node.value == "for":
-            pass
+            return f"for {node.sub_node[0].value} in range({node.sub_node[1].value}, {node.sub_node[2].value}):\n    {instructions}\n"
             
         elif node.value == "while":
-            return  f"while {node_interpreter(node.sub_node[0])}:\n    {instructions}\n"
+            return f"while {node_interpreter(node.sub_node[0])}:\n    {instructions}\n"
+
+    if node.type == "Condition":
+        if len(node.sub_node) > 1:
+            return f"{node_interpreter(node.sub_node[0])} {node.value.lower()} {node_interpreter(node.sub_node[1])}"
+        else:
+            return node_interpreter(node.sub_node[0])
 
     if node.type == "Comparison":
         if node.value == "EGA":
@@ -415,6 +429,10 @@ def node_interpreter(node):
 
         elif node.value == "INF_EGA":
             return f"{node.sub_node[0].value} <= {node_interpreter(node.sub_node[1])}"
+
+    if node.type == "Function":
+        args = [f"{node_interpreter(i)}" for i in node.sub_node]
+        return f"{node.value}(" + ", ".join(args) + ")\n"
 
     return ""
 
@@ -450,11 +468,24 @@ def compylateur(code, file=False):
     print(python_code)
 
 
-txt = """afficher "var"
-si var égale 2 alors
+txt = """demander la valeur de var
+afficher "var :"
+afficher var
+var prend la valeur int(var, 10)
+si var égale 2 ou var est inférieur ou égal à 10 alors
 var prend la valeur var + 1
 afficher var / 2
 fin si
+
+pour i allant de 0 à 5,
+afficher i
+fin pour
+
+tant que i est supérieur à 0,
+afficher i
+i prend la valeur i - 1
+fin tant que
+
 afficher "fin du programme."
 """
 compylateur(txt)
