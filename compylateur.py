@@ -391,7 +391,7 @@ def node_interpreter(node):
 
     if node.type == "Display":
         if node.sub_node[0].type == "Text":
-            return f"print({node.sub_node[0].value})\n"
+            return f"print(f{node.sub_node[0].value})\n"
         elif node.sub_node[0].type == "Expression":
             return "print(f\"{" + node_interpreter(node.sub_node[0]) + "}\")\n"
 
@@ -469,21 +469,20 @@ def compylateur(code, file=False):
 
 
 txt = """demander la valeur de var
-afficher "var :"
-afficher var
 var prend la valeur int(var, 10)
+afficher "var : {var}"
 si var égale 2 ou var est inférieur ou égal à 10 alors
-var prend la valeur var + 1
-afficher var / 2
+    var prend la valeur var + 1
+    afficher var / 2
 fin si
 
 pour i allant de 0 à 5,
-afficher i
+    afficher i
 fin pour
 
 tant que i est supérieur à 0,
-afficher i
-i prend la valeur i - 1
+    afficher i
+    i prend la valeur i - 1
 fin tant que
 
 afficher "fin du programme."
